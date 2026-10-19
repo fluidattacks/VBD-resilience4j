@@ -30,6 +30,7 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.inject.ExecutableMethod;
 import io.micronaut.inject.MethodExecutionHandle;
+import io.micronaut.http.context.ServerRequestContext;
 
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
@@ -75,7 +76,13 @@ public class RateLimiterInterceptor extends BaseInterceptor implements MethodInt
             return context.proceed();
         }
         ExecutableMethod executableMethod = context.getExecutableMethod();
-        final String name = executableMethod.stringValue(io.github.resilience4j.micronaut.annotation.RateLimiter.class, "name").orElse("default");
+        String name = executableMethod.stringValue(io.github.resilience4j.micronaut.annotation.RateLimiter.class, "name").orElse("default");
+        String tenant = ServerRequestContext.currentRequest()
+                .map(request -> request.getHeaders().get("X-Tenant-Id"))
+                .orElse("");
+        if (!tenant.isEmpty()) {
+            name = name + ":" + tenant;
+        }
         RateLimiterConfig config = rateLimiterRegistry.getConfiguration(name)
                 .orElse(rateLimiterRegistry.getDefaultConfig());
 
